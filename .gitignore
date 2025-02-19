@@ -171,7 +171,8 @@ cython_debug/
 .pypirc
 
 .data
-
+data/
 .checkpoints
+checkpoints/
 
 
