@@ -10,7 +10,14 @@ from transformers import PreTrainedTokenizerFast
 
 if __name__ == '__main__':
     tokenizer = PreTrainedTokenizerFast(tokenizer_file="checkpoints/tokenizer/tokenizer.json")
-    text = '''您想要测试的新文本内容'''
+    text = '''人工智能正在快速发展。近年来，大型语言模型在自然语言处理领域取得了突破性进展。
+            这些模型不仅能够理解和生成文本，还能进行编程、数学计算和创意写作。
+            不过，我们也要警惕AI发展带来的潜在风险和伦理问题。
+            让我们共同努力，确保AI技术造福人类社会！
+
+            2024年，全球AI市场规模预计将达到5000亿美元。
+            深度学习模型的参数量从10年前的百万级别发展到了现在的千亿级别。
+            ChatGPT的出现让更多人认识到了AI的潜力。'''
     encoded = tokenizer(text)
     l = len(encoded["input_ids"])
     x = encoded["input_ids"][0: l - 1]
@@ -23,7 +30,7 @@ if __name__ == '__main__':
     model = Transformer(config).cuda()
 
     optimizer = optim.AdamW(model.parameters(), betas=(0.9, 0.95), eps=10e-5, lr=3e-4)
-    epochs = 1000
+    epochs = 500
 
     for epoch in range(epochs):
         optimizer.zero_grad()
