@@ -18,3 +18,15 @@
 #     ],
 #     stream=False))
 # # print(response.choices[0].message.content)
+from openai import OpenAI
+
+client = OpenAI(
+  api_key="6b0EPsV8IWd2foSCBORVyVcqDXCEJNNny1Kv3Pa1CMENpUBO4p67YVZ42soES6sVa",
+  base_url="https://api.stepfun.com/v1"
+)
+ 
+model_list = client.models.list()
+for model in model_list:
+    if "v" in model.id:
+        print(model.id)
+

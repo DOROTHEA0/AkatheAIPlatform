@@ -48,9 +48,11 @@ def generate_text(model, tokenizer, text_in="人工智能", max_len=100):
             logits, _ = model(x, use_cache=True, y=None)
             logits = logits[:, -1, :]
             probs = F.softmax(logits, dim=-1)
-            x_next = torch.argmax(probs, dim=-1)
+            #x_next = torch.argmax(probs, dim=-1)
+            x_next = torch.multinomial(probs, num_samples=1)
             print(tokenizer.decode(x_next.item()), end="")
-            x = torch.cat((x, x_next.unsqueeze(0)), dim=1)
+            #x = torch.cat((x, x_next.unsqueeze(0)), dim=1)
+            x = torch.cat((x, x_next), dim=1)
 
 if __name__ == '__main__':
     #test_llm()
