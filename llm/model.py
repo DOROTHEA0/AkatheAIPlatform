@@ -78,9 +78,9 @@ class GroupQueryAttention(nn.Module):
     def __init__(self, config):
         super(GroupQueryAttention, self).__init__()
         self.hidden_dim = config.embed_dim
-        self.q_head = config.n_head
-        self.n_group = config.n_group
-        self.kv_head = self.q_head // self.n_group
+        self.q_head = config.q_head
+        self.kv_head = config.kv_head
+        self.n_group = self.q_head // self.kv_head
         self.q_proj = nn.Linear(self.hidden_dim, self.hidden_dim, bias=config.att_bias)
         self.k_proj = nn.Linear(self.hidden_dim, self.hidden_dim // self.n_group, bias=config.att_bias)
         self.v_proj = nn.Linear(self.hidden_dim, self.hidden_dim // self.n_group, bias=config.att_bias)
@@ -89,6 +89,9 @@ class GroupQueryAttention(nn.Module):
 
         self.register_buffer('kv_cache', None)
         self.register_buffer('freqs_cis', precompute_freqs_cis(self.hidden_dim, config.max_seq_len * 2))
+
+    def reset_cache(self):
+        self.kv_cache = None
 
     def forward(self, x, mask=None, use_cache=False):
         bsz = x.size(0)
@@ -162,6 +165,9 @@ class Block(nn.Module):
         self.att_norm = RMSNorm(dim=config.embed_dim)
         self.dense_norm = RMSNorm(dim=config.embed_dim)
 
+    def reset_cache(self):
+        self.att_layer.reset_cache()
+
     def forward(self, x, mask=None, use_cache=False):
         x = x + self.att_layer(self.att_norm(x), mask, use_cache)
         return x + self.dense_layer(self.dense_norm(x))
@@ -175,16 +181,21 @@ class Transformer(nn.Module):
             self.layers.append(Block(config))
         self.output_layer = nn.Linear(in_features=config.embed_dim, out_features=config.n_vocabs)
 
+    def reset_cache(self):
+        for layer in self.layers:
+            layer.reset_cache()
+
     def forward(self, x, mask=None, use_cache=False, y=None):
         x = self.word_embedding(x)
         for layer in self.layers:
             x = layer(x, mask=mask, use_cache=use_cache)
         logits = self.output_layer(x)
+        # padding id is 0
         if y is not None:
             loss = F.cross_entropy(
                 logits.view(-1, logits.size(-1)),  # 展平前两维
                 y.view(-1),  # 展平成1D向量
-                #ignore_index=-100  # 可选：忽略padding位置（若标签用-100填充）
+                ignore_index=0  # 可选：忽略padding位置（若标签用-100填充）
             )
         else:
             loss = None
