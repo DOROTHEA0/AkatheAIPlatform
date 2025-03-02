@@ -26,24 +26,20 @@ def precompute_freqs_cis(dim: int, seq_len: int, theta: float = 10000.0):
 
 # 旋转位置编码计算
 def apply_rotary_emb(
-        xq: torch.Tensor,
-        xk: torch.Tensor,
+        x: torch.Tensor,
         freqs_cis: torch.Tensor,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> torch.Tensor:
     # xq.shape = [batch_size, seq_len, dim]
     # xq_.shape = [batch_size, seq_len, dim // 2, 2]
-    xq_ = xq.float().reshape(*xq.shape[:-1], -1, 2)
-    xk_ = xk.float().reshape(*xk.shape[:-1], -1, 2)
+    x_ = x.float().reshape(*x.shape[:-1], -1, 2)
 
     # 转为复数域
-    xq_ = torch.view_as_complex(xq_)
-    xk_ = torch.view_as_complex(xk_)
+    x_ = torch.view_as_complex(x_)
 
     # 应用旋转操作，然后将结果转回实数域
     # xq_out.shape = [batch_size, seq_len, dim]
-    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(2)
-    xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(2)
-    return xq_out.type_as(xq), xk_out.type_as(xk)
+    x_out = torch.view_as_real(x_ * freqs_cis).flatten(2)
+    return x_out.type_as(x)
 
 
 def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:

@@ -94,14 +94,14 @@ class GroupQueryAttention(nn.Module):
         self.kv_cache = None
 
     def forward(self, x, mask=None, use_cache=False):
-        bsz = x.size(0)
+        bsz, seq_len, _ = x.shape
         if use_cache and self.kv_cache is not None:
             x = x[:, -1:, :]
 
         q = self.q_proj(x)
         k = self.k_proj(x)
         v = self.v_proj(x)
-
+        
         if use_cache:
             if self.kv_cache is not None:
                 k_cache, v_cache = torch.chunk(self.kv_cache, 2)
@@ -112,16 +112,18 @@ class GroupQueryAttention(nn.Module):
         k = repeat_kv(k.reshape(k.size(0), k.size(1), self.kv_head, k.size(2) // self.kv_head), self.n_group)
         v = repeat_kv(v.reshape(v.size(0), v.size(1), self.kv_head, v.size(2) // self.kv_head), self.n_group)
 
-        if use_cache and self.kv_cache is not None:
-            start_pos = self.kv_cache.size(1)
-            end_pos = start_pos + q.size(1)
+        if use_cache and self.kv_cache is not None and q.size(1) == 1:
+            start_pos = self.kv_cache.size(1) - 1
+            end_pos = start_pos + 1
         else:
             start_pos = 0
             end_pos = q.size(1)
+        q_freqs_cis = self.freqs_cis[start_pos: end_pos].to(x.device)
+        k_freqs_cis = self.freqs_cis[: seq_len].to(x.device)
 
-        freqs_cis = self.freqs_cis[start_pos: end_pos].to(x.device)
-        q, k = apply_rotary_emb(q, k, freqs_cis)
-
+        q = apply_rotary_emb(q, q_freqs_cis)
+        k = apply_rotary_emb(k, k_freqs_cis)
+        
         q = q.view(bsz, -1, self.q_head, self.hidden_dim // self.q_head).transpose(1, 2)
         k = k.view(bsz, -1, self.q_head, self.hidden_dim // self.q_head).transpose(1, 2)
         v = v.view(bsz, -1, self.q_head, self.hidden_dim // self.q_head).transpose(1, 2)
@@ -129,9 +131,11 @@ class GroupQueryAttention(nn.Module):
         scores = q @ k.transpose(2, 3) / math.sqrt(self.hidden_dim)
         if mask is not None:
             scores = scores.masked_fill(mask, float('-inf'))
-
         scores = torch.softmax(scores, dim=-1)
+        
         v = scores @ v
+        print(v.shape)
+        exit()
         v = v.transpose(1, 2).contiguous().view(bsz, -1, self.hidden_dim)
         return self.dropout(self.output(v))
 
